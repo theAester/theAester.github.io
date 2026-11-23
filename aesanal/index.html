@@ -133,8 +133,8 @@
 
     /* Row labels (0x - fx) */
     table.wikitable tbody th {
-      background-color: #e2e8f0;
-      color: #475569;
+      background-color: var(--sb-accent);
+      color: #ffffff;
       font-weight: 700;
     }
 
@@ -181,6 +181,41 @@
     table.wikitable a:hover {
       text-decoration: underline;
     }
+
+    table.sboxwikitable {
+      cursor: none;
+    }
+
+    table.sboxwikitable caption {
+      cursor: default;
+    }
+
+    /* Highlight the data cells in the hovered column */
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(1):hover)>tr>td:nth-of-type(1),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(2):hover)>tr>td:nth-of-type(2),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(3):hover)>tr>td:nth-of-type(3),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(4):hover)>tr>td:nth-of-type(4),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(5):hover)>tr>td:nth-of-type(5),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(6):hover)>tr>td:nth-of-type(6),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(7):hover)>tr>td:nth-of-type(7),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(8):hover)>tr>td:nth-of-type(8),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(9):hover)>tr>td:nth-of-type(9),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(10):hover)>tr>td:nth-of-type(10),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(11):hover)>tr>td:nth-of-type(11),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(12):hover)>tr>td:nth-of-type(12),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(13):hover)>tr>td:nth-of-type(13),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(14):hover)>tr>td:nth-of-type(14),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(15):hover)>tr>td:nth-of-type(15),
+    table.sboxwikitable tbody:has(> tr > td:nth-of-type(16):hover)>tr>td:nth-of-type(16) {
+      background-color: var(--sb-accent-soft);
+    }
+
+    table.sboxwikitable tbody:has(td:hover) td:nth-of-type(n):not([colspan]):hover {
+      background-color: var(--sb-accent);
+      color: #111827;
+      font-weight: 700;
+    }
+
 
     /* ===== Round Constants ===== */
     #round-constants {
@@ -967,6 +1002,7 @@
       }
     }
 
+
     @media (prefers-color-scheme: dark) {
       :root {
         color-scheme: dark;
@@ -1102,8 +1138,8 @@
       }
 
       table.wikitable tbody th {
-        background-color: var(--aes-soft);
-        color: var(--aes-ink);
+        background-color: var(--sb-accent);
+        color: #111827;
       }
 
       table.wikitable tbody td:not([colspan]) {
@@ -1132,6 +1168,38 @@
       table.wikitable a {
         color: var(--aes-blue);
       }
+
+      table.sboxwikitable {
+        cursor: none;
+      }
+
+
+      /* Highlight the data cells in the hovered column */
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(1):hover)>tr>td:nth-of-type(1),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(2):hover)>tr>td:nth-of-type(2),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(3):hover)>tr>td:nth-of-type(3),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(4):hover)>tr>td:nth-of-type(4),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(5):hover)>tr>td:nth-of-type(5),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(6):hover)>tr>td:nth-of-type(6),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(7):hover)>tr>td:nth-of-type(7),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(8):hover)>tr>td:nth-of-type(8),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(9):hover)>tr>td:nth-of-type(9),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(10):hover)>tr>td:nth-of-type(10),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(11):hover)>tr>td:nth-of-type(11),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(12):hover)>tr>td:nth-of-type(12),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(13):hover)>tr>td:nth-of-type(13),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(14):hover)>tr>td:nth-of-type(14),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(15):hover)>tr>td:nth-of-type(15),
+      table.sboxwikitable tbody:has(> tr > td:nth-of-type(16):hover)>tr>td:nth-of-type(16) {
+        background-color: var(--sb-accent-soft);
+      }
+
+      table.sboxwikitable tbody:has(td:hover) td:nth-of-type(n):not([colspan]):hover {
+        background-color: var(--sb-accent);
+        color: #111827;
+        font-weight: 700;
+      }
+
 
       #round-constants {
         --sb-accent: #a78bfa;
@@ -1202,7 +1270,6 @@
         you can find the javascript implementation of the complete AES-128-cbc algorithm <a href="aes.js"
           download>Here</a>. You can use it in a browser or in nodejs.
       </div>
-
       <section class="card" aria-labelledby="setup-title">
         <h2 id="setup-title">Block and key inputs</h2>
         <p class="muted">
@@ -1252,7 +1319,7 @@
 
       <section id="tables">
         <h2>The AES SBOX</h2>
-        <table class="wikitable floatright" style="font-size:80%">
+        <table class="wikitable floatright sboxwikitable" style="font-size:80%">
           <caption>AES S-box</caption>
           <tbody>
             <tr>
@@ -1590,7 +1657,7 @@
           </tbody>
         </table>
 
-        <table class="wikitable floatright" style="font-size:80%">
+        <table class="wikitable floatright sboxwikitable" style="font-size:80%">
           <caption>Inverse S-box</caption>
           <tbody>
             <tr>
