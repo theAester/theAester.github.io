@@ -50,6 +50,7 @@
 
     footer {
       display: flex;
+      flex-direction: column;
       justify-content: center;
       padding: 1rem;
       font-size: 0.875rem;
@@ -57,6 +58,10 @@
       background-color: #f3f4f6;
       border-top: 1px solid #e5e7eb;
       margin-top: 10rem;
+    }
+
+    footer>div {
+      display: block;
     }
 
     /* ===== S-box tables ===== */
@@ -2089,7 +2094,12 @@
   </div>
 
   <footer id="page-end">
-    AES-128 educational interface scaffold. <br>aester. 2026.
+    <div>
+      AES-128 educational interface.
+    </div>
+    <div style="text-align: center;">
+      <span style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">©</span> aester. 2026.
+    </div>
   </footer>
 
   <script type="text/javascript" src="aes.js"></script>
