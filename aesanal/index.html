@@ -1,0 +1,2731 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AES-128 Learning Walkthrough</title>
+  <!-- <link rel="stylesheet" href="base.css"> -->
+
+  <style>
+    /* ===== Reset ===== */
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: 16px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background-color: #fafafa;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== Layout ===== */
+    header {
+      display: flex;
+      justify-content: center;
+      padding: 1.5rem;
+      background-color: #f3f4f6;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    main {
+      flex: 1;
+      width: 100%;
+      max-width: 1364px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    footer {
+      display: flex;
+      justify-content: center;
+      padding: 1rem;
+      font-size: 0.875rem;
+      color: #6b7280;
+      background-color: #f3f4f6;
+      border-top: 1px solid #e5e7eb;
+      margin-top: 10rem;
+    }
+
+    /* ===== S-box tables ===== */
+    #tables {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 4rem;
+    }
+
+    #tables h2 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #0f172a;
+      text-align: center;
+    }
+
+    table.wikitable {
+      float: none;
+      width: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+      table-layout: fixed;
+      border-collapse: separate;
+      border-spacing: 4px;
+      border-radius: 14px;
+      background-color: #ffffff;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.05);
+      padding: 12px;
+      font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    /* Per-table accents: forward S-box = amber, inverse S-box = green */
+    #tables table.wikitable:first-of-type {
+      --sb-accent: #f59e0b;
+      --sb-accent-soft: #fef3c7;
+    }
+
+    #tables table.wikitable:last-of-type {
+      --sb-accent: #10b981;
+      --sb-accent-soft: #d1fae5;
+    }
+
+    table.wikitable caption {
+      caption-side: top;
+      margin-bottom: 8px;
+      text-align: center;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #334155;
+      background-color: var(--sb-accent-soft);
+      border-radius: 8px;
+      padding: 8px 16px;
+    }
+
+    table.wikitable th,
+    table.wikitable td {
+      font-size: 0.68rem;
+      line-height: 1.4;
+      text-align: center;
+      border-radius: 6px;
+      transition: background-color 150ms ease, color 150ms ease;
+    }
+
+    /* Column headers (x0 - xf) */
+    table.wikitable tr:first-child th {
+      background-color: var(--sb-accent);
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    /* Row labels (0x - fx) */
+    table.wikitable tbody th {
+      background-color: #e2e8f0;
+      color: #475569;
+      font-weight: 700;
+    }
+
+    /* Data cells */
+    table.wikitable tbody td:not([colspan]) {
+      color: #1e293b;
+      font-weight: 600;
+      background-color: #ffffff;
+    }
+
+    table.wikitable tbody tr:nth-child(even) td:not([colspan]) {
+      background-color: #f1f5f9;
+    }
+
+    /* Row hover: soft highlight across the whole row */
+    table.wikitable tbody tr:hover td:not([colspan]) {
+      background-color: var(--sb-accent-soft);
+      color: #0f172a;
+    }
+
+    /* Cell hover: strong highlight on the exact cell */
+    table.wikitable tbody tr:hover td:not([colspan]):hover {
+      background-color: var(--sb-accent);
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    /* Footnote row */
+    table.wikitable td[colspan] {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 400;
+      text-align: center;
+      color: #64748b;
+      background: transparent;
+      padding: 4px 8px;
+    }
+
+    table.wikitable a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+
+    table.wikitable a:hover {
+      text-decoration: underline;
+    }
+
+    /* ===== Round Constants ===== */
+    #round-constants {
+      --sb-accent: #8b5cf6;
+      --sb-accent-soft: #ede9fe;
+
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 4rem;
+    }
+
+    #round-constants h2 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #0f172a;
+      text-align: center;
+    }
+
+    #round-constants table.wikitable {
+      margin: 0 auto;
+    }
+
+    .scrollBottom {
+      text-decoration: underline;
+      color: #2563eb
+    }
+
+    .scrollBottom:hover {
+      cursor: pointer;
+    }
+
+    .round-constants-note {
+      max-width: 640px;
+      margin: 0 auto;
+      color: #64748b;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+
+    /* Layout and components layered on top of base.css */
+    :root {
+      --aes-ink: #1a1a1a;
+      --aes-muted: #6b7280;
+      --aes-line: #e5e7eb;
+      --aes-panel: #fff;
+      --aes-soft: #f3f4f6;
+      --aes-blue: #2563eb;
+      --aes-blue-soft: #dbeafe;
+      --aes-amber: #f59e0b;
+      --aes-amber-soft: #fef3c7;
+      --aes-green: #10b981;
+      --aes-green-soft: #d1fae5;
+    }
+
+    header .header-inner {
+      width: 100%;
+      max-width: 960px;
+    }
+
+    header h1 {
+      color: #0f172a;
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      line-height: 1.25;
+      margin-bottom: .35rem;
+    }
+
+    header p {
+      color: #4b5563;
+    }
+
+    main.page-layout {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr) 250px;
+      gap: 1.25rem;
+      align-items: start;
+    }
+
+    .mobile-floats,
+    .key-panel-backdrop {
+      display: none;
+    }
+
+    .format-options {
+      display: flex;
+      gap: 1rem;
+      margin-top: .75rem;
+      padding: .5rem .75rem;
+      border: 1px solid var(--aes-line);
+      border-radius: 8px;
+    }
+
+    .format-options label {
+      display: flex;
+      gap: .35rem;
+      align-items: center;
+    }
+
+    .operation-arrow {
+      align-self: center;
+      flex: 0 0 auto;
+      min-width: 42px;
+      padding: .35rem;
+      border-color: var(--aes-line);
+      background: var(--aes-soft);
+      color: #1d4ed8;
+      font-size: 1.35rem;
+    }
+
+    .operation-arrow:hover,
+    .operation-arrow:focus-visible {
+      border-color: var(--aes-blue);
+      background: var(--aes-blue-soft);
+    }
+
+    .operation-tooltip {
+      position: fixed;
+      z-index: 1000;
+      width: min(520px, calc(100vw - 24px));
+      max-height: min(75vh, 680px);
+      overflow: auto;
+      padding: 1rem 1.1rem;
+      border: 1px solid #475569;
+      border-radius: 12px;
+      background: #111827;
+      color: #e5e7eb;
+      box-shadow: 0 12px 36px rgb(0 0 0 / 30%);
+      font-size: .88rem;
+      line-height: 1.5;
+      pointer-events: none;
+    }
+
+    .operation-tooltip h3 {
+      margin: 0 0 .5rem;
+      color: #fff;
+      font-size: 1.1rem;
+    }
+
+    .operation-tooltip p {
+      margin: .5rem 0;
+    }
+
+    .operation-tooltip code {
+      background: #374151;
+      color: #f3f4f6;
+    }
+
+    .op-equation,
+    .op-flow,
+    .op-columns,
+    .op-grid-pair {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .55rem;
+      margin: .8rem 0;
+      flex-wrap: wrap;
+    }
+
+    .op-equation>span,
+    .op-flow>span,
+    .op-box,
+    .op-vector span,
+    .op-grid span {
+      padding: .35rem .5rem;
+      border: 1px solid #64748b;
+      border-radius: 5px;
+      background: #1f2937;
+      text-align: center;
+      font-family: ui-monospace, monospace;
+    }
+
+    .op-box {
+      border-color: #60a5fa;
+      background: #1e3a5f;
+    }
+
+    .op-example {
+      color: #bfdbfe;
+    }
+
+    .op-grid-pair>div {
+      text-align: center;
+    }
+
+    .op-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 42px);
+      gap: 3px;
+      margin-top: .35rem;
+    }
+
+    .op-grid span {
+      padding: .3rem .1rem;
+      font-size: .78rem;
+    }
+
+    .op-big-arrow {
+      color: #93c5fd;
+      font-size: 1.5rem;
+    }
+
+    .op-matrix {
+      display: grid;
+      grid-template-columns: repeat(4, 32px);
+      gap: 3px;
+    }
+
+    .op-matrix span,
+    .op-vector span {
+      padding: .3rem .15rem;
+      border: 1px solid #64748b;
+      border-radius: 4px;
+      background: #1f2937;
+      text-align: center;
+      font: .78rem ui-monospace, monospace;
+    }
+
+    .op-vector {
+      display: grid;
+      gap: 3px;
+    }
+
+
+
+    .key-sidebar-heading button {
+      display: none;
+    }
+
+    .key-sidebar {
+      position: sticky;
+      top: 1rem;
+      max-height: calc(100vh - 2rem);
+      overflow: auto;
+      padding: 1rem;
+      border: 1px solid var(--aes-line);
+      border-radius: 12px;
+      background: var(--aes-panel);
+    }
+
+    .key-sidebar h2 {
+      margin-bottom: .25rem;
+      font-size: 1rem;
+    }
+
+    .key-sidebar p {
+      color: var(--aes-muted);
+      font-size: .82rem;
+    }
+
+    .key-bytes {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(32px, 1fr));
+      gap: 4px;
+      margin: .65rem 0;
+    }
+
+    .key-byte {
+      padding: .35rem .15rem;
+      border: 1px solid var(--aes-line);
+      border-radius: 5px;
+      background: #f9fafb;
+      text-align: center;
+      font: .78rem ui-monospace, monospace;
+    }
+
+    .key-steps {
+      padding-left: 1.1rem;
+      font-size: .82rem;
+    }
+
+    .round-link.active {
+      border-color: var(--aes-blue);
+      background: var(--aes-blue-soft);
+      color: #1d4ed8;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 1rem;
+      max-height: calc(100vh - 2rem);
+      overflow: auto;
+      padding: 1rem;
+      border: 1px solid var(--aes-line);
+      border-radius: 12px;
+      background: var(--aes-panel);
+    }
+
+    .sidebar h2 {
+      margin-bottom: .25rem;
+      color: #0f172a;
+      font-size: 1rem;
+    }
+
+    .sidebar-intro {
+      margin-bottom: .85rem;
+      color: var(--aes-muted);
+      font-size: .82rem;
+    }
+
+    .flow-link,
+    .round-link {
+      display: block;
+      color: var(--aes-ink);
+      text-decoration: none;
+    }
+
+    .flow-link {
+      position: relative;
+      margin: 0 0 1rem;
+      padding: .55rem .65rem;
+      border: 1px solid var(--aes-line);
+      border-radius: 9px;
+      background: #fff;
+      font-size: .82rem;
+      font-weight: 650;
+      line-height: 1.3;
+      transition: border-color 150ms ease, background-color 150ms ease, transform 150ms ease;
+    }
+
+    .flow-link:not(:last-of-type)::after {
+      content: "↓";
+      position: absolute;
+      left: 50%;
+      bottom: -.95rem;
+      color: #9ca3af;
+      font-size: .9rem;
+      font-weight: 700;
+      transform: translateX(-50%);
+    }
+
+    .flow-link:hover,
+    .flow-link:focus-visible {
+      border-color: var(--aes-blue);
+      background: #eff6ff;
+      outline: none;
+    }
+
+    .flow-link.active,
+    .round-link.active {
+      border-color: var(--aes-blue);
+      background: var(--aes-blue-soft);
+      color: #1d4ed8;
+    }
+
+    .flow-link[data-operation="SubBytes"] {
+      border-left: 4px solid var(--aes-amber);
+    }
+
+    .flow-link[data-operation="MixColumns"] {
+      border-left: 4px solid var(--aes-green);
+    }
+
+    .flow-link[data-operation="AddRoundKey"] {
+      border-left: 4px solid var(--aes-blue);
+    }
+
+    .round-index {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .35rem;
+      margin-top: .4rem;
+    }
+
+    .round-link {
+      padding: .35rem .2rem;
+      border: 1px solid var(--aes-line);
+      border-radius: 6px;
+      text-align: center;
+      font-size: .75rem;
+      font-weight: 650;
+    }
+
+    .content-column {
+      min-width: 0;
+    }
+
+    .notice,
+    .card {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--aes-line);
+      border-radius: 12px;
+      background: var(--aes-panel);
+    }
+
+    .notice {
+      border-color: #f2d58a;
+      background: var(--aes-amber-soft);
+      font-size: .9rem;
+    }
+
+    .card h2 {
+      margin-bottom: .35rem;
+      color: #0f172a;
+      font-size: 1.2rem;
+    }
+
+    .muted {
+      color: var(--aes-muted);
+    }
+
+    .input-row,
+    .controls,
+    .state-pair,
+    .stage-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      align-items: center;
+    }
+
+    .input-row {
+      margin-top: .8rem;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: .25rem;
+    }
+
+    .input-row label {
+      flex: 1 1 220px;
+      font-size: .88rem;
+      font-weight: 650;
+    }
+
+    .text-input {
+      display: block;
+      width: 100%;
+      margin-top: .25rem;
+      padding: .55rem .65rem;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      background: #fff;
+      color: var(--aes-ink);
+      font: .9rem ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    button {
+      padding: .55rem .75rem;
+      border: 1px solid var(--aes-blue);
+      border-radius: 7px;
+      background: var(--aes-blue);
+      color: #fff;
+      font: inherit;
+      font-size: .85rem;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    button.copyButton {
+      margin-top: 2rem;
+    }
+
+    button.copyButton:active {
+      color: var(--aes-green);
+      border-color: var(--aes-green);
+    }
+
+    button.secondary {
+      background: #fff;
+      color: var(--aes-blue);
+    }
+
+    button.secondary:hover {
+      background: #eff6ff;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .controls {
+      margin-top: .85rem;
+    }
+
+    .sr-status {
+      min-height: 1.4em;
+      margin-top: .55rem;
+      color: var(--aes-muted);
+      font-size: .82rem;
+    }
+
+    .round {
+      margin-top: .75rem;
+      overflow: hidden;
+      border: 1px solid var(--aes-line);
+      border-radius: 10px;
+      background: #fff;
+      scroll-margin-top: 1rem;
+    }
+
+    .round>summary {
+      padding: .75rem .9rem;
+      background: var(--aes-soft);
+      color: #0f172a;
+      cursor: pointer;
+      font-weight: 750;
+    }
+
+    .round-content {
+      padding: 0 .75rem .75rem;
+    }
+
+    .stage {
+      margin-top: .65rem;
+      overflow: hidden;
+      border: 1px solid var(--aes-line);
+      border-radius: 8px;
+      scroll-margin-top: 1rem;
+    }
+
+    .stage>summary {
+      padding: .65rem .75rem;
+      background: #fff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .stage-content {
+      padding: .75rem;
+    }
+
+    .stage-content>p {
+      margin-bottom: .65rem;
+      font-size: .88rem;
+    }
+
+    .state-pair {
+      align-items: flex-start;
+    }
+
+    .state-box {
+      flex: 1 1 220px;
+      min-width: 0;
+    }
+
+    .state-box h4 {
+      margin-bottom: .4rem;
+      font-size: .86rem;
+    }
+
+    .matrix {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(36px, 52px));
+      gap: 4px;
+      width: max-content;
+      max-width: 100%;
+    }
+
+    .byte {
+      width: 100%;
+      min-width: 0;
+      padding: .4rem .15rem;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+      background: #f9fafb;
+      color: #1e293b;
+      text-align: center;
+      font: .82rem ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+      text-transform: uppercase;
+    }
+
+    .byte:focus,
+    .text-input:focus {
+      outline: 2px solid #93c5fd;
+      border-color: var(--aes-blue);
+    }
+
+    .stage-actions {
+      margin-top: .75rem;
+    }
+
+    .stage-actions button {
+      font-size: .78rem;
+    }
+
+    .key-steps {
+      margin: .5rem 0 .75rem;
+      padding-left: 1.25rem;
+      font-size: .88rem;
+    }
+
+    code {
+      padding: .05rem .25rem;
+      border-radius: 4px;
+      background: #f3f4f6;
+      font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    footer {
+      text-align: center;
+    }
+
+    @media (max-width: 1000px) {
+      main.page-layout {
+        grid-template-columns: 250px minmax(0, 1fr);
+      }
+
+      .key-sidebar {
+        grid-column: 2;
+        position: static;
+        max-height: none;
+      }
+
+      .key-sidebar {
+        grid-column: auto;
+      }
+
+      .key-sidebar {
+        display: none;
+        position: fixed;
+        z-index: 1200;
+        inset: auto .75rem calc(5.25rem + env(safe-area-inset-bottom));
+        max-height: min(72dvh, 620px);
+        overflow: auto;
+        width: 60%;
+        left: 20%;
+        box-shadow: 0 12px 36px rgb(0 0 0 / 25%);
+      }
+
+      .key-sidebar.mobile-open {
+        display: block;
+      }
+
+      .key-sidebar-heading button {
+        display: inline-block;
+      }
+
+      .mobile-floats,
+      .key-panel-backdrop {
+        display: none;
+      }
+
+      .key-panel-backdrop:not([hidden]) {
+        display: block;
+        position: fixed;
+        z-index: 1100;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        border-radius: 0;
+        background: rgb(15 23 42 / 45%);
+      }
+
+      .mobile-floats {
+        display: flex;
+        flex-direction: column;
+        gap: .5rem;
+        position: fixed;
+        z-index: 1300;
+        right: .75rem;
+        bottom: calc(.75rem + env(safe-area-inset-bottom));
+      }
+
+      .mobile-floats button {
+        box-shadow: 0 4px 14px rgb(0 0 0 / 20%);
+      }
+
+      .flow-index {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .4rem;
+      }
+
+      .flow-link {
+        margin: 0;
+      }
+
+      .flow-link::after {
+        display: none;
+      }
+
+      .round-index {
+        grid-template-columns: repeat(6, 1fr);
+      }
+    }
+
+    @media (max-width: 720px) {
+      main.page-layout {
+        grid-template-columns: 1fr;
+        gap: .75rem;
+      }
+
+      .sidebar {
+        position: static;
+        max-height: none;
+      }
+
+      .key-sidebar {
+        grid-column: auto;
+      }
+
+      .key-sidebar {
+        display: none;
+        position: fixed;
+        z-index: 1200;
+        inset: auto .75rem calc(5.25rem + env(safe-area-inset-bottom));
+        max-height: min(72dvh, 620px);
+        overflow: auto;
+        box-shadow: 0 12px 36px rgb(0 0 0 / 25%);
+      }
+
+      .key-sidebar.mobile-open {
+        display: block;
+      }
+
+      .key-sidebar-heading button {
+        display: inline-block;
+      }
+
+      .mobile-floats,
+      .key-panel-backdrop {
+        display: none;
+      }
+
+      .key-panel-backdrop:not([hidden]) {
+        display: block;
+        position: fixed;
+        z-index: 1100;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        border-radius: 0;
+        background: rgb(15 23 42 / 45%);
+      }
+
+      .mobile-floats {
+        display: flex;
+        flex-direction: column;
+        gap: .5rem;
+        position: fixed;
+        z-index: 1300;
+        right: .75rem;
+        bottom: calc(.75rem + env(safe-area-inset-bottom));
+      }
+
+      .mobile-floats button {
+        box-shadow: 0 4px 14px rgb(0 0 0 / 20%);
+      }
+
+      .flow-index {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .4rem;
+      }
+
+      .flow-link {
+        margin: 0;
+      }
+
+      .flow-link::after {
+        display: none;
+      }
+
+      .round-index {
+        grid-template-columns: repeat(6, 1fr);
+      }
+    }
+
+    @media (max-width: 420px) {
+      main {
+        padding: 1rem;
+      }
+
+      .flow-index {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .matrix {
+        grid-template-columns: repeat(4, minmax(34px, 1fr));
+        width: 100%;
+      }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --aes-ink: #e5e7eb;
+        --aes-muted: #9ca3af;
+        --aes-line: #374151;
+        --aes-panel: #1f2937;
+        --aes-soft: #273449;
+        --aes-blue: #60a5fa;
+        --aes-blue-soft: #1e3a5f;
+        --aes-amber: #fbbf24;
+        --aes-amber-soft: #453716;
+        --aes-green: #34d399;
+        --aes-green-soft: #123c32;
+      }
+
+      body {
+        background: #111827;
+        color: var(--aes-ink);
+      }
+
+      header,
+      footer {
+        background: #111827;
+        color: #e5e7eb;
+      }
+
+      header h1 {
+        color: #f3f4f6;
+      }
+
+      header p,
+
+      footer {
+        color: #9ca3af;
+      }
+
+      header h1,
+      .card h2,
+      .sidebar h2,
+      .round>summary {
+        color: #f3f4f6;
+      }
+
+      header p,
+      .muted,
+      .sidebar-intro,
+      .sr-status {
+        color: var(--aes-muted);
+      }
+
+      .sidebar,
+      .card,
+      .round,
+      .stage,
+      .flow-link,
+      .round-link,
+      .text-input,
+      .byte,
+      .key-byte {
+        background: var(--aes-panel);
+        color: var(--aes-ink);
+        border-color: var(--aes-line);
+      }
+
+      .notice {
+        background: var(--aes-amber-soft);
+        color: var(--aes-ink);
+      }
+
+      .round>summary,
+      .stage>summary {
+        background: var(--aes-soft);
+        color: var(--aes-ink);
+      }
+
+      .flow-link.active,
+      .round-link.active {
+        background: var(--aes-blue-soft);
+        color: #bfdbfe;
+      }
+
+      button.secondary {
+        background: var(--aes-panel);
+        color: var(--aes-blue);
+      }
+
+      button.secondary:hover,
+      .flow-link:hover,
+      .flow-link:focus-visible {
+        background: var(--aes-soft);
+      }
+
+      code {
+        background: #374151;
+        color: #e5e7eb;
+      }
+
+      .byte:focus,
+      .text-input:focus {
+        outline-color: #60a5fa;
+        border-color: #60a5fa;
+      }
+
+      #tables h2 {
+        color: var(--aes-ink);
+      }
+
+      #tables table.wikitable:first-of-type {
+        --sb-accent: var(--aes-amber);
+        --sb-accent-soft: var(--aes-amber-soft);
+      }
+
+      #tables table.wikitable:last-of-type {
+        --sb-accent: var(--aes-green);
+        --sb-accent-soft: var(--aes-green-soft);
+      }
+
+      table.wikitable {
+        background-color: var(--aes-panel);
+        color: var(--aes-ink);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25),
+          0 1px 2px rgba(0, 0, 0, 0.2);
+      }
+
+      table.wikitable caption {
+        color: var(--aes-ink);
+        background-color: var(--sb-accent-soft);
+      }
+
+      table.wikitable tr:first-child th {
+        color: #111827;
+      }
+
+      table.wikitable tbody th {
+        background-color: var(--aes-soft);
+        color: var(--aes-ink);
+      }
+
+      table.wikitable tbody td:not([colspan]) {
+        background-color: var(--aes-panel);
+        color: var(--aes-ink);
+      }
+
+      table.wikitable tbody tr:nth-child(even) td:not([colspan]) {
+        background-color: var(--aes-soft);
+      }
+
+      table.wikitable tbody tr:hover td:not([colspan]) {
+        background-color: var(--sb-accent-soft);
+        color: var(--aes-ink);
+      }
+
+      table.wikitable tbody tr:hover td:not([colspan]):hover {
+        background-color: var(--sb-accent);
+        color: #111827;
+      }
+
+      table.wikitable td[colspan] {
+        color: var(--aes-muted);
+      }
+
+      table.wikitable a {
+        color: var(--aes-blue);
+      }
+
+      #round-constants {
+        --sb-accent: #a78bfa;
+        --sb-accent-soft: #30264a;
+      }
+
+      #round-constants h2 {
+        color: var(--aes-ink);
+      }
+
+      .round-constants-note {
+        color: var(--aes-muted);
+      }
+
+
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>AES-128 Learning Walkthrough</h1>
+      <p>Explore the transformations in a 128-bit AES block. Expand an operation to inspect its 4 × 4 byte
+        states.</p>
+    </div>
+  </header>
+
+  <main class="page-layout">
+    <aside class="sidebar" aria-label="AES operation index">
+      <h2>AES Encryption flow</h2>
+      <p class="sidebar-intro">Select a bubble to jump to that operation. The current step is highlighted as you scroll.
+      </p>
+
+      <nav class="flow-index" aria-label="AES encryption flow">
+        <a class="flow-link" href="#round-0-addroundkey" data-target="round-0-addroundkey" data-operation="AddRoundKey">
+          Input → Initial AddRoundKey
+        </a>
+        <a class="flow-link" href="#round-1-subbytes" data-target="round-1-subbytes" data-operation="SubBytes">
+          SubBytes
+        </a>
+        <a class="flow-link" href="#round-1-shiftrows" data-target="round-1-shiftrows" data-operation="ShiftRows">
+          ShiftRows
+        </a>
+        <a class="flow-link" href="#round-1-mixcolumns" data-target="round-1-mixcolumns" data-operation="MixColumns">
+          MixColumns
+        </a>
+        <a class="flow-link" href="#round-1-addroundkey" data-target="round-1-addroundkey" data-operation="AddRoundKey">
+          AddRoundKey · rounds 1–9
+        </a>
+        <a class="flow-link" href="#round-10-subbytes" data-target="round-10-subbytes" data-operation="SubBytes">
+          Final round · SubBytes
+        </a>
+        <a class="flow-link" href="#round-10-addroundkey" data-target="round-10-addroundkey"
+          data-operation="AddRoundKey">
+          Final AddRoundKey → output
+        </a>
+      </nav>
+
+      <h2 style="margin-top: 1rem">Round index</h2>
+      <nav id="roundIndex" class="round-index" aria-label="AES rounds"></nav>
+    </aside>
+
+    <div class="content-column">
+      <section class="card" aria-labelledby="setup-title">
+        <h2 id="setup-title">Block and key inputs</h2>
+        <p class="muted">
+          Enter a 16-byte block and a 16-byte key. This scaffold performs the AES AES-128
+          Block cipher algorithm step by step and demonstrate the intermediate computation.
+        </p>
+
+        <fieldset class="format-options">
+          <legend>Plaintext format</legend>
+          <label>
+            <input type="radio" name="inputFormat" value="hex" checked>
+            Hex
+          </label>
+          <label>
+            <input type="radio" name="inputFormat" value="ascii">
+            ASCII
+          </label>
+        </fieldset>
+
+        <div class="input-row">
+          <label for="plaintext">Plaintext</label>
+          <input id="plaintext" class="text-input" type="text" value="00112233445566778899aabbccddeeff"
+            autocomplete="off" spellcheck="false" aria-describedby="globalStatus">
+        </div>
+
+        <div class="input-row">
+          <label for="key">Key (hex)</label>
+          <input id="key" class="text-input" type="text" value="000102030405060708090a0b0c0d0e0f" autocomplete="off"
+            spellcheck="false" aria-describedby="globalStatus">
+        </div>
+
+        <div class="controls">
+          <button id="expandAll" type="button">Expand all</button>
+          <button id="collapseAll" class="secondary" type="button">Collapse all</button>
+        </div>
+
+        <p id="globalStatus" class="sr-status" aria-live="polite"></p>
+      </section>
+
+
+      <section class="card" aria-labelledby="states-title">
+        <h2 id="states-title">Round and operation states</h2>
+        <p class="muted">Each operation shows its input and output state. Edit bytes directly, or copy an operation’s
+          output into the next operation’s input.</p>
+        <div id="rounds"></div>
+      </section>
+
+      <section id="tables">
+        <h2>The AES SBOX</h2>
+        <table class="wikitable floatright" style="font-size:80%">
+          <caption>AES S-box</caption>
+          <tbody>
+            <tr>
+              <th></th>
+              <th>x0</th>
+              <th>x1</th>
+              <th>x2</th>
+              <th>x3</th>
+              <th>x4</th>
+              <th>x5</th>
+              <th>x6</th>
+              <th>x7</th>
+              <th>x8</th>
+              <th>x9</th>
+              <th>xa</th>
+              <th>xb</th>
+              <th>xc</th>
+              <th>xd</th>
+              <th>xe</th>
+              <th>xf</th>
+            </tr>
+            <tr>
+              <th>0x</th>
+              <td>63</td>
+              <td>7c</td>
+              <td>77</td>
+              <td>7b</td>
+              <td>f2</td>
+              <td>6b</td>
+              <td>6f</td>
+              <td>c5</td>
+              <td>30</td>
+              <td>01</td>
+              <td>67</td>
+              <td>2b</td>
+              <td>fe</td>
+              <td>d7</td>
+              <td>ab</td>
+              <td>76</td>
+            </tr>
+            <tr>
+              <th>1x</th>
+              <td>ca</td>
+              <td>82</td>
+              <td>c9</td>
+              <td>7d</td>
+              <td>fa</td>
+              <td>59</td>
+              <td>47</td>
+              <td>f0</td>
+              <td>ad</td>
+              <td>d4</td>
+              <td>a2</td>
+              <td>af</td>
+              <td>9c</td>
+              <td>a4</td>
+              <td>72</td>
+              <td>c0</td>
+            </tr>
+            <tr>
+              <th>2x</th>
+              <td>b7</td>
+              <td>fd</td>
+              <td>93</td>
+              <td>26</td>
+              <td>36</td>
+              <td>3f</td>
+              <td>f7</td>
+              <td>cc</td>
+              <td>34</td>
+              <td>a5</td>
+              <td>e5</td>
+              <td>f1</td>
+              <td>71</td>
+              <td>d8</td>
+              <td>31</td>
+              <td>15</td>
+            </tr>
+            <tr>
+              <th>3x</th>
+              <td>04</td>
+              <td>c7</td>
+              <td>23</td>
+              <td>c3</td>
+              <td>18</td>
+              <td>96</td>
+              <td>05</td>
+              <td>9a</td>
+              <td>07</td>
+              <td>12</td>
+              <td>80</td>
+              <td>e2</td>
+              <td>eb</td>
+              <td>27</td>
+              <td>b2</td>
+              <td>75</td>
+            </tr>
+            <tr>
+              <th>4x</th>
+              <td>09</td>
+              <td>83</td>
+              <td>2c</td>
+              <td>1a</td>
+              <td>1b</td>
+              <td>6e</td>
+              <td>5a</td>
+              <td>a0</td>
+              <td>52</td>
+              <td>3b</td>
+              <td>d6</td>
+              <td>b3</td>
+              <td>29</td>
+              <td>e3</td>
+              <td>2f</td>
+              <td>84</td>
+            </tr>
+            <tr>
+              <th>5x</th>
+              <td>53</td>
+              <td>d1</td>
+              <td>00</td>
+              <td>ed</td>
+              <td>20</td>
+              <td>fc</td>
+              <td>b1</td>
+              <td>5b</td>
+              <td>6a</td>
+              <td>cb</td>
+              <td>be</td>
+              <td>39</td>
+              <td>4a</td>
+              <td>4c</td>
+              <td>58</td>
+              <td>cf</td>
+            </tr>
+            <tr>
+              <th>6x</th>
+              <td>d0</td>
+              <td>ef</td>
+              <td>aa</td>
+              <td>fb</td>
+              <td>43</td>
+              <td>4d</td>
+              <td>33</td>
+              <td>85</td>
+              <td>45</td>
+              <td>f9</td>
+              <td>02</td>
+              <td>7f</td>
+              <td>50</td>
+              <td>3c</td>
+              <td>9f</td>
+              <td>a8</td>
+            </tr>
+            <tr>
+              <th>7x</th>
+              <td>51</td>
+              <td>a3</td>
+              <td>40</td>
+              <td>8f</td>
+              <td>92</td>
+              <td>9d</td>
+              <td>38</td>
+              <td>f5</td>
+              <td>bc</td>
+              <td>b6</td>
+              <td>da</td>
+              <td>21</td>
+              <td>10</td>
+              <td>ff</td>
+              <td>f3</td>
+              <td>d2</td>
+            </tr>
+            <tr>
+              <th>8x</th>
+              <td>cd</td>
+              <td>0c</td>
+              <td>13</td>
+              <td>ec</td>
+              <td>5f</td>
+              <td>97</td>
+              <td>44</td>
+              <td>17</td>
+              <td>c4</td>
+              <td>a7</td>
+              <td>7e</td>
+              <td>3d</td>
+              <td>64</td>
+              <td>5d</td>
+              <td>19</td>
+              <td>73</td>
+            </tr>
+            <tr>
+              <th>9x</th>
+              <td>60</td>
+              <td>81</td>
+              <td>4f</td>
+              <td>dc</td>
+              <td>22</td>
+              <td>2a</td>
+              <td>90</td>
+              <td>88</td>
+              <td>46</td>
+              <td>ee</td>
+              <td>b8</td>
+              <td>14</td>
+              <td>de</td>
+              <td>5e</td>
+              <td>0b</td>
+              <td>db</td>
+            </tr>
+            <tr>
+              <th>ax</th>
+              <td>e0</td>
+              <td>32</td>
+              <td>3a</td>
+              <td>0a</td>
+              <td>49</td>
+              <td>06</td>
+              <td>24</td>
+              <td>5c</td>
+              <td>c2</td>
+              <td>d3</td>
+              <td>ac</td>
+              <td>62</td>
+              <td>91</td>
+              <td>95</td>
+              <td>e4</td>
+              <td>79</td>
+            </tr>
+            <tr>
+              <th>bx</th>
+              <td>e7</td>
+              <td>c8</td>
+              <td>37</td>
+              <td>6d</td>
+              <td>8d</td>
+              <td>d5</td>
+              <td>4e</td>
+              <td>a9</td>
+              <td>6c</td>
+              <td>56</td>
+              <td>f4</td>
+              <td>ea</td>
+              <td id="mw-A">65</td>
+              <td id="mw-Q">7a</td>
+              <td id="mw-g">ae</td>
+              <td id="mw-w">08</td>
+            </tr>
+            <tr>
+              <th>cx</th>
+              <td>ba</td>
+              <td>78</td>
+              <td>25</td>
+              <td>2e</td>
+              <td>1c</td>
+              <td>a6</td>
+              <td>b4</td>
+              <td>c6</td>
+              <td>e8</td>
+              <td>dd</td>
+              <td>74</td>
+              <td>1f</td>
+              <td>4b</td>
+              <td>bd</td>
+              <td>8b</td>
+              <td>8a</td>
+            </tr>
+            <tr>
+              <th>dx</th>
+              <td>70</td>
+              <td>3e</td>
+              <td>b5</td>
+              <td>66</td>
+              <td>48</td>
+              <td>03</td>
+              <td>f6</td>
+              <td>0e</td>
+              <td>61</td>
+              <td>35</td>
+              <td>57</td>
+              <td>b9</td>
+              <td>86</td>
+              <td>c1</td>
+              <td>1d</td>
+              <td>9e</td>
+            </tr>
+            <tr>
+              <th>ex</th>
+              <td>e1</td>
+              <td>f8</td>
+              <td>98</td>
+              <td>11</td>
+              <td>69</td>
+              <td>d9</td>
+              <td>8e</td>
+              <td>94</td>
+              <td>9b</td>
+              <td>1e</td>
+              <td>87</td>
+              <td>e9</td>
+              <td>ce</td>
+              <td>55</td>
+              <td>28</td>
+              <td>df</td>
+            </tr>
+            <tr>
+              <th>fx</th>
+              <td>8c</td>
+              <td>a1</td>
+              <td>89</td>
+              <td>0d</td>
+              <td>bf</td>
+              <td>e6</td>
+              <td>42</td>
+              <td>68</td>
+              <td>41</td>
+              <td>99</td>
+              <td>2d</td>
+              <td>0f</td>
+              <td>b0</td>
+              <td>54</td>
+              <td>bb</td>
+              <td>16</td>
+            </tr>
+            <tr>
+              <td colspan="17" width="20em">The column is determined by the least significant <a rel="mw:WikiLink"
+                  href="https://en.wikipedia.org/wiki/Nibble" title="Nibble">nibble</a>, and the row by the most
+                significant nibble. For example, the value 9a<sub about="#mwt5" typeof="mw:Transclusion"
+                  data-mw="{&quot;parts&quot;:[{&quot;template&quot;:{&quot;target&quot;:{&quot;wt&quot;:&quot;sub&quot;,&quot;href&quot;:&quot;./Template:Sub&quot;},&quot;params&quot;:{&quot;1&quot;:{&quot;wt&quot;:&quot;16&quot;}},&quot;i&quot;:0}}]}">16</sub>
+                is converted into b8<sub about="#mwt6" typeof="mw:Transclusion"
+                  data-mw="{&quot;parts&quot;:[{&quot;template&quot;:{&quot;target&quot;:{&quot;wt&quot;:&quot;sub&quot;,&quot;href&quot;:&quot;./Template:Sub&quot;},&quot;params&quot;:{&quot;1&quot;:{&quot;wt&quot;:&quot;16&quot;}},&quot;i&quot;:0}}]}">16</sub>.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="wikitable floatright" style="font-size:80%">
+          <caption>Inverse S-box</caption>
+          <tbody>
+            <tr>
+              <th></th>
+              <th>x0</th>
+              <th>x1</th>
+              <th>x2</th>
+              <th>x3</th>
+              <th>x4</th>
+              <th>x5</th>
+              <th>x6</th>
+              <th>x7</th>
+              <th>x8</th>
+              <th>x9</th>
+              <th>xa</th>
+              <th>xb</th>
+              <th>xc</th>
+              <th>xd</th>
+              <th>xe</th>
+              <th>xf</th>
+            </tr>
+            <tr>
+              <th>0x</th>
+              <td>52</td>
+              <td>09</td>
+              <td>6a</td>
+              <td>d5</td>
+              <td>30</td>
+              <td>36</td>
+              <td>a5</td>
+              <td>38</td>
+              <td>bf</td>
+              <td>40</td>
+              <td>a3</td>
+              <td>9e</td>
+              <td>81</td>
+              <td>f3</td>
+              <td>d7</td>
+              <td>fb</td>
+            </tr>
+            <tr>
+              <th>1x</th>
+              <td>7c</td>
+              <td>e3</td>
+              <td>39</td>
+              <td>82</td>
+              <td>9b</td>
+              <td>2f</td>
+              <td>ff</td>
+              <td>87</td>
+              <td>34</td>
+              <td>8e</td>
+              <td>43</td>
+              <td>44</td>
+              <td>c4</td>
+              <td>de</td>
+              <td>e9</td>
+              <td>cb</td>
+            </tr>
+            <tr>
+              <th>2x</th>
+              <td>54</td>
+              <td>7b</td>
+              <td>94</td>
+              <td>32</td>
+              <td>a6</td>
+              <td>c2</td>
+              <td>23</td>
+              <td>3d</td>
+              <td>ee</td>
+              <td>4c</td>
+              <td>95</td>
+              <td>0b</td>
+              <td>42</td>
+              <td>fa</td>
+              <td>c3</td>
+              <td>4e</td>
+            </tr>
+            <tr>
+              <th>3x</th>
+              <td>08</td>
+              <td>2e</td>
+              <td>a1</td>
+              <td>66</td>
+              <td>28</td>
+              <td>d9</td>
+              <td>24</td>
+              <td>b2</td>
+              <td>76</td>
+              <td>5b</td>
+              <td>a2</td>
+              <td>49</td>
+              <td>6d</td>
+              <td>8b</td>
+              <td>d1</td>
+              <td>25</td>
+            </tr>
+            <tr>
+              <th>4x</th>
+              <td>72</td>
+              <td>f8</td>
+              <td>f6</td>
+              <td>64</td>
+              <td>86</td>
+              <td>68</td>
+              <td>98</td>
+              <td>16</td>
+              <td>d4</td>
+              <td>a4</td>
+              <td>5c</td>
+              <td>cc</td>
+              <td>5d</td>
+              <td>65</td>
+              <td>b6</td>
+              <td>92</td>
+            </tr>
+            <tr>
+              <th>5x</th>
+              <td>6c</td>
+              <td>70</td>
+              <td>48</td>
+              <td>50</td>
+              <td>fd</td>
+              <td>ed</td>
+              <td>b9</td>
+              <td>da</td>
+              <td>5e</td>
+              <td>15</td>
+              <td>46</td>
+              <td>57</td>
+              <td>a7</td>
+              <td>8d</td>
+              <td>9d</td>
+              <td>84</td>
+            </tr>
+            <tr>
+              <th>6x</th>
+              <td>90</td>
+              <td>d8</td>
+              <td>ab</td>
+              <td>00</td>
+              <td>8c</td>
+              <td>bc</td>
+              <td>d3</td>
+              <td>0a</td>
+              <td>f7</td>
+              <td>e4</td>
+              <td>58</td>
+              <td>05</td>
+              <td>b8</td>
+              <td>b3</td>
+              <td>45</td>
+              <td>06</td>
+            </tr>
+            <tr>
+              <th>7x</th>
+              <td>d0</td>
+              <td>2c</td>
+              <td>1e</td>
+              <td>8f</td>
+              <td>ca</td>
+              <td>3f</td>
+              <td>0f</td>
+              <td>02</td>
+              <td>c1</td>
+              <td>af</td>
+              <td>bd</td>
+              <td>03</td>
+              <td>01</td>
+              <td>13</td>
+              <td>8a</td>
+              <td>6b</td>
+            </tr>
+            <tr>
+              <th>8x</th>
+              <td>3a</td>
+              <td>91</td>
+              <td>11</td>
+              <td>41</td>
+              <td>4f</td>
+              <td>67</td>
+              <td>dc</td>
+              <td>ea</td>
+              <td>97</td>
+              <td>f2</td>
+              <td>cf</td>
+              <td>ce</td>
+              <td>f0</td>
+              <td>b4</td>
+              <td>e6</td>
+              <td>73</td>
+            </tr>
+            <tr>
+              <th>9x</th>
+              <td>96</td>
+              <td>ac</td>
+              <td>74</td>
+              <td>22</td>
+              <td>e7</td>
+              <td>ad</td>
+              <td>35</td>
+              <td>85</td>
+              <td>e2</td>
+              <td>f9</td>
+              <td>37</td>
+              <td>e8</td>
+              <td>1c</td>
+              <td>75</td>
+              <td>df</td>
+              <td>6e</td>
+            </tr>
+            <tr>
+              <th>ax</th>
+              <td>47</td>
+              <td>f1</td>
+              <td>1a</td>
+              <td>71</td>
+              <td>1d</td>
+              <td>29</td>
+              <td>c5</td>
+              <td>89</td>
+              <td>6f</td>
+              <td>b7</td>
+              <td>62</td>
+              <td>0e</td>
+              <td>aa</td>
+              <td>18</td>
+              <td>be</td>
+              <td>1b</td>
+            </tr>
+            <tr>
+              <th>bx</th>
+              <td>fc</td>
+              <td>56</td>
+              <td>3e</td>
+              <td>4b</td>
+              <td>c6</td>
+              <td>d2</td>
+              <td>79</td>
+              <td>20</td>
+              <td>9a</td>
+              <td>db</td>
+              <td>c0</td>
+              <td>fe</td>
+              <td>78</td>
+              <td>cd</td>
+              <td>5a</td>
+              <td>f4</td>
+            </tr>
+            <tr>
+              <th>cx</th>
+              <td>1f</td>
+              <td>dd</td>
+              <td>a8</td>
+              <td>33</td>
+              <td>88</td>
+              <td>07</td>
+              <td>c7</td>
+              <td>31</td>
+              <td>b1</td>
+              <td>12</td>
+              <td>10</td>
+              <td>59</td>
+              <td>27</td>
+              <td>80</td>
+              <td>ec</td>
+              <td>5f</td>
+            </tr>
+            <tr>
+              <th>dx</th>
+              <td>60</td>
+              <td>51</td>
+              <td>7f</td>
+              <td>a9</td>
+              <td>19</td>
+              <td>b5</td>
+              <td>4a</td>
+              <td>0d</td>
+              <td>2d</td>
+              <td>e5</td>
+              <td>7a</td>
+              <td>9f</td>
+              <td>93</td>
+              <td>c9</td>
+              <td>9c</td>
+              <td>ef</td>
+            </tr>
+            <tr>
+              <th>ex</th>
+              <td>a0</td>
+              <td>e0</td>
+              <td>3b</td>
+              <td>4d</td>
+              <td>ae</td>
+              <td>2a</td>
+              <td>f5</td>
+              <td>b0</td>
+              <td>c8</td>
+              <td>eb</td>
+              <td>bb</td>
+              <td>3c</td>
+              <td>83</td>
+              <td>53</td>
+              <td>99</td>
+              <td>61</td>
+            </tr>
+            <tr>
+              <th>fx</th>
+              <td>17</td>
+              <td>2b</td>
+              <td>04</td>
+              <td>7e</td>
+              <td>ba</td>
+              <td>77</td>
+              <td>d6</td>
+              <td>26</td>
+              <td>e1</td>
+              <td>69</td>
+              <td>14</td>
+              <td>63</td>
+              <td>55</td>
+              <td>21</td>
+              <td>0c</td>
+              <td>7d</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section id="round-constants" aria-labelledby="round-constants-title">
+        <h2 id="round-constants-title">Round Constants</h2>
+
+        <table class="wikitable">
+          <caption>AES-128 key expansion · RC</caption>
+          <thead>
+            <tr>
+              <th scope="col">Round</th>
+              <th scope="col">RC byte</th>
+              <th scope="col">RC word</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">1</th>
+              <td>01</td>
+              <td>01 00 00 00</td>
+            </tr>
+            <tr>
+              <th scope="row">2</th>
+              <td>02</td>
+              <td>02 00 00 00</td>
+            </tr>
+            <tr>
+              <th scope="row">3</th>
+              <td>04</td>
+              <td>04 00 00 00</td>
+            </tr>
+            <tr>
+              <th scope="row">4</th>
+              <td>08</td>
+              <td>08 00 00 00</td>
+            </tr>
+            <tr>
+              <th scope="row">5</th>
+              <td>10</td>
+              <td>10 00 00 00</td>
+            </tr>
+            <tr>
+              <th scope="row">6</th>
+              <td>20</td>
+              <td>20 00 00 00</td>
+            </tr>
+            <tr>
+              <th scope="row">7</th>
+              <td>40</td>
+              <td>40 00 00 00</td>
+            </tr>
+            <tr>
+              <th scope="row">8</th>
+              <td>80</td>
+              <td>80 00 00 00</td>
+            </tr>
+            <tr>
+              <th scope="row">9</th>
+              <td>1B</td>
+              <td>1B 00 00 00</td>
+            </tr>
+            <tr>
+              <th scope="row">10</th>
+              <td>36</td>
+              <td>36 00 00 00</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p class="round-constants-note">
+          Each round constant is XORed into the first byte of the key-schedule word
+          after RotWord and SubWord.
+        </p>
+      </section>
+    </div>
+    <aside id="keySidebar" class="key-sidebar" aria-label="AES key schedule" aria-hidden="true">
+      <div class="key-sidebar-heading">
+        <h2>Key schedule</h2>
+        <button id="closeKeySchedule" class="secondary" type="button">
+          Close
+        </button>
+      </div>
+
+      <p id="keyScheduleStatus" aria-live="polite"></p>
+
+      <section aria-live="polite">
+        <h3 id="keyScheduleRound">Round key 0</h3>
+        <div id="roundKeyBytes" class="key-bytes" aria-label="Round key bytes"></div>
+        <ol id="keyScheduleSteps" class="key-steps"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <button id="keyPanelBackdrop" class="key-panel-backdrop" type="button" aria-label="Close key schedule"
+    hidden></button>
+
+  <div class="mobile-floats">
+    <button id="backToTop" type="button" aria-label="Scroll back to top">
+      ↑ Top
+    </button>
+    <button id="toggleKeySchedule" type="button" aria-controls="keySidebar" aria-expanded="false">
+      Key schedule
+    </button>
+  </div>
+
+  <footer id="page-end">
+    AES-128 educational interface scaffold. <br>aester. 2026.
+  </footer>
+
+  <script type="text/javascript" src="aes.js"></script>
+
+  <script>
+    const operationInfo = {
+      AddRoundKey: `
+    <h3>AddRoundKey</h3>
+    <p>XOR each state byte with the corresponding byte of round key <code>Kᵣ</code>.</p>
+    <div class="op-equation">
+      <span>State byte</span><b>⊕</b><span>Round-key byte</span>
+      <b>→</b><span>Output byte</span>
+    </div>
+    <p class="op-example">Example: <code>57 ⊕ 83 = D4</code></p>
+    <p>The initial step uses the original key; later steps use the expanded round keys.</p>
+  `,
+
+      SubBytes: `
+    <h3>SubBytes</h3>
+    <p>Apply the AES S-box independently to each of the 16 state bytes.</p>
+    <div class="op-flow">
+      <span>Input byte</span><b>→</b><span class="op-box">AES S-box</span>
+      <b>→</b><span>Substituted byte</span>
+    </div>
+    <p>The S-box is built from a multiplicative inverse in GF(2⁸), followed by an affine transformation. Its lookup values are omitted here.</p>
+  `,
+
+      ShiftRows: `
+    <h3>ShiftRows</h3>
+    <p>Rotate each row of the state to the left by its row number.</p>
+    <div class="op-grid-pair">
+      <div>
+        <strong>Before</strong>
+        <div class="op-grid">
+          <span>s₀₀</span><span>s₀₁</span><span>s₀₂</span><span>s₀₃</span>
+          <span>s₁₀</span><span>s₁₁</span><span>s₁₂</span><span>s₁₃</span>
+          <span>s₂₀</span><span>s₂₁</span><span>s₂₂</span><span>s₂₃</span>
+          <span>s₃₀</span><span>s₃₁</span><span>s₃₂</span><span>s₃₃</span>
+        </div>
+      </div>
+      <b class="op-big-arrow">→</b>
+      <div>
+        <strong>After</strong>
+        <div class="op-grid">
+          <span>s₀₀</span><span>s₀₁</span><span>s₀₂</span><span>s₀₃</span>
+          <span>s₁₁</span><span>s₁₂</span><span>s₁₃</span><span>s₁₀</span>
+          <span>s₂₂</span><span>s₂₃</span><span>s₂₀</span><span>s₂₁</span>
+          <span>s₃₃</span><span>s₃₀</span><span>s₃₁</span><span>s₃₂</span>
+        </div>
+      </div>
+    </div>
+    <p>Row 0 stays put; rows 1, 2, and 3 rotate left by 1, 2, and 3 bytes.</p>
+  `,
+
+      MixColumns: `
+    <h3>MixColumns</h3>
+    <p>Transform each column independently. Coefficient multiplication and addition are performed in GF(2⁸); addition is XOR.</p>
+    <div class="op-columns">
+      <div class="op-matrix">
+        <span>02</span><span>03</span><span>01</span><span>01</span>
+        <span>01</span><span>02</span><span>03</span><span>01</span>
+        <span>01</span><span>01</span><span>02</span><span>03</span>
+        <span>03</span><span>01</span><span>01</span><span>02</span>
+      </div>
+      <b class="op-big-arrow">×</b>
+      <div class="op-vector"><span>a₀</span><span>a₁</span><span>a₂</span><span>a₃</span></div>
+      <b class="op-big-arrow">=</b>
+      <div class="op-vector"><span>b₀</span><span>b₁</span><span>b₂</span><span>b₃</span></div>
+    </div>
+    <p>For example: <code>b₀ = (02·a₀) ⊕ (03·a₁) ⊕ a₂ ⊕ a₃</code>.</p>
+    <p><code>02·a</code> is <code>xtime(a)</code>: shift left one bit; if the original high bit was 1, XOR the result with <code>1B</code>. Then <code>03·a = xtime(a) ⊕ a</code>.</p>
+    <p>The final AES round omits MixColumns.</p>
+  `
+    };
+    const operationSequence = [
+      ["AddRoundKey"],
+      ...Array.from({length: 9}, () =>
+        ["SubBytes", "ShiftRows", "MixColumns", "AddRoundKey"]
+      ),
+      ["SubBytes", "ShiftRows", "AddRoundKey"]
+    ];
+
+    const plaintextInput = document.getElementById("plaintext");
+    const keyInput = document.getElementById("key");
+    const statusEl = document.getElementById("globalStatus");
+    const roundsEl = document.getElementById("rounds");
+    const roundIndexEl = document.getElementById("roundIndex");
+
+    const keyScheduleStatusEl = document.getElementById("keyScheduleStatus");
+    const keyScheduleRoundEl = document.getElementById("keyScheduleRound");
+    const roundKeyBytesEl = document.getElementById("roundKeyBytes");
+    const keyScheduleStepsEl = document.getElementById("keyScheduleSteps");
+
+    const stages = [];
+    let currentRoundKeys = [];
+    let activeRound = 0;
+    let scrollUpdatePending = false;
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "operation-tooltip";
+    tooltip.hidden = true;
+    tooltip.setAttribute("role", "tooltip");
+    document.body.appendChild(tooltip);
+
+    function currentPlaintextFormat() {
+      return document.querySelector(
+        'input[name="inputFormat"]:checked'
+      ).value;
+    }
+
+    function slugify(value) {
+      return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+    }
+
+    // Group valid hex characters in pairs, preserving the approximate caret
+    // position. Invalid characters remain visible for validation to report.
+    function formatHexField(field) {
+      const caret = field.selectionStart ?? field.value.length;
+      const digitsBeforeCaret = field.value.slice(0, caret).replace(/\s/g, "").length;
+      const raw = field.value.replace(/\s/g, "");
+
+      if (!/^[0-9a-f]*$/i.test(raw)) return;
+
+      field.value = (raw.match(/.{1,2}/g)?.join(" ") ?? "").toUpperCase();
+
+      const spacesBeforeCaret =
+        digitsBeforeCaret > 0 ? Math.floor((digitsBeforeCaret - 1) / 2) : 0;
+      const newCaret = digitsBeforeCaret + spacesBeforeCaret;
+      field.setSelectionRange(newCaret, newCaret);
+    }
+
+    function parseHexField(field, label) {
+      const compact = field.value.replace(/\s/g, "");
+
+      if (!/^[0-9a-f]*$/i.test(compact)) {
+        return {error: `${label} must contain only hexadecimal characters.`};
+      }
+      if (compact.length !== 32) {
+        return {error: `${label} must contain exactly 32 hex digits (16 bytes).`};
+      }
+
+      return {
+        bytes: compact.match(/.{2}/g).map(pair => pair.toUpperCase())
+      };
+    }
+
+    function parsePlaintext() {
+      const format = currentPlaintextFormat();
+
+      if (format === "hex") {
+        return parseHexField(plaintextInput, "Plaintext");
+      }
+
+      const characters = Array.from(plaintextInput.value);
+      if (
+        characters.length !== 16 ||
+        characters.some(char => char.charCodeAt(0) > 0x7f)
+      ) {
+        return {error: "ASCII plaintext must contain exactly 16 ASCII characters."};
+      }
+
+      return {
+        bytes: characters.map(char =>
+          char.charCodeAt(0).toString(16).padStart(2, "0").toUpperCase()
+        )
+      };
+    }
+
+    // AES state display order: the input block fills the state down columns.
+    function bytesToState(bytes) {
+      const state = Array(16);
+
+      for (let row = 0; row < 4; row++) {
+        for (let column = 0; column < 4; column++) {
+          state[row * 4 + column] = bytes[column * 4 + row];
+        }
+      }
+
+      return state;
+    }
+
+    function randomByte() {
+      return Math.floor(Math.random() * 256)
+        .toString(16)
+        .padStart(2, "0")
+        .toUpperCase();
+    }
+
+    function state_pack(l) {
+      // Here i have to pack and unpack in the correct order
+      return [
+        [l[0], l[4], l[8], l[12]],
+        [l[1], l[5], l[9], l[13]],
+        [l[2], l[6], l[10], l[14]],
+        [l[3], l[7], l[11], l[15]], ,
+      ];
+      //return [
+      //  [l[0], l[1], l[2], l[3]],
+      //  [l[4], l[5], l[6], l[7]],
+      //  [l[8], l[9], l[10], l[11]],
+      //  [l[12], l[13], l[14], l[15]],
+      //];
+    }
+    function state_unpack(p) {
+      return [
+        p[0][0],
+        p[1][0],
+        p[2][0],
+        p[3][0],
+        p[0][1],
+        p[1][1],
+        p[2][1],
+        p[3][1],
+        p[0][2],
+        p[1][2],
+        p[2][2],
+        p[3][2],
+        p[0][3],
+        p[1][3],
+        p[2][3],
+        p[3][3],
+      ];
+    }
+
+    function state_encode(byteArray) {
+      return byteArray.map((byte) => byte.toString(16).padStart(2, "0").toUpperCase())
+    }
+
+    function state_encode2(st) {
+      return state_encode(state_unpack(st));
+    }
+
+    function state_decode(stateArray) {
+      const out = stateArray.map((str) => parseInt(str, 16));
+      return state_pack(out);
+    }
+
+    function randomState() {
+      return Array.from({length: 16}, randomByte);
+    }
+
+    function makeMatrix(values, label) {
+      const grid = document.createElement("div");
+      grid.className = "matrix";
+      grid.setAttribute("role", "group");
+      grid.setAttribute("aria-label", label);
+
+      for (let i = 0; i < 16; i++) {
+        const cell = document.createElement("input");
+        cell.className = "byte";
+        cell.type = "text";
+        cell.value = values[i] ?? "00";
+        cell.readOnly = true;
+        cell.setAttribute("aria-label", `${label}, byte ${i + 1}`);
+        grid.appendChild(cell);
+      }
+
+      return grid;
+    }
+
+    function readMatrixFixed(grid) {
+      values = Array(16);
+      [...grid.querySelectorAll("input")].forEach((cell, index) => {
+        const hi = Math.floor(index / 4);
+        const lo = index % 4;
+        values[lo * 4 + hi] = cell.value;
+      });
+      return values;
+    }
+    function writeMatrix(grid, values) {
+      [...grid.querySelectorAll("input")].forEach((cell, index) => {
+        cell.value = values[index] ?? "00";
+      });
+    }
+    function positionTooltip(x, y) {
+      const margin = 10;
+      const gap = 14;
+      const width = tooltip.offsetWidth;
+      const height = tooltip.offsetHeight;
+
+      const left = Math.min(
+        x + gap,
+        window.innerWidth - width - margin
+      );
+
+      const below = y + gap + height <= window.innerHeight - margin;
+      const top = below ? y + gap : Math.max(margin, y - height - gap);
+
+      tooltip.style.left = `${Math.max(margin, left)}px`;
+      tooltip.style.top = `${top}px`;
+    }
+
+    function showTooltipAtPointer(event, text) {
+      tooltip.innerHTML = text;
+      tooltip.hidden = false;
+      positionTooltip(event.clientX, event.clientY);
+    }
+
+    function attachTooltip(arrow, text) {
+      arrow.addEventListener("pointerenter", event => {
+        showTooltipAtPointer(event, text);
+      });
+
+      arrow.addEventListener("pointermove", event => {
+        if (!tooltip.hidden) positionTooltip(event.clientX, event.clientY);
+      });
+
+      arrow.addEventListener("pointerleave", () => {
+        tooltip.hidden = true;
+      });
+
+      arrow.addEventListener("focus", () => {
+        const rect = arrow.getBoundingClientRect();
+        tooltip.innerHTML = text;
+        tooltip.hidden = false;
+        positionTooltip(rect.left + rect.width / 2, rect.bottom);
+      });
+
+      arrow.addEventListener("blur", () => {
+        tooltip.hidden = true;
+      });
+    }
+
+    //TODO: add hover modal for operation details
+    function makeStage(roundNumber, operationName) {
+      const stage = document.createElement("details");
+      stage.className = "stage";
+      stage.open = true;
+      stage.id = `round-${roundNumber}-${slugify(operationName)}`;
+
+      const summary = document.createElement("summary");
+      summary.textContent = operationName;
+
+      const content = document.createElement("div");
+      content.className = "stage-content";
+
+      const pair = document.createElement("div");
+      pair.className = "state-pair";
+
+      const inputBox = document.createElement("div");
+      inputBox.className = "state-box";
+      const inputHeading = document.createElement("h4");
+      inputHeading.textContent = "Input state";
+      const inputGrid = makeMatrix(
+        Array(16).fill("00"),
+        `Round ${roundNumber} ${operationName} input state`
+      );
+      inputBox.append(inputHeading, inputGrid);
+
+      const arrow = document.createElement("button");
+      arrow.className = "operation-arrow";
+      arrow.type = "button";
+      arrow.textContent = "→";
+      arrow.setAttribute("aria-label", `${operationName} operation details`);
+      attachTooltip(arrow, operationInfo[operationName]);
+
+      const outputBox = document.createElement("div");
+      outputBox.className = "state-box";
+      const outputHeading = document.createElement("h4");
+      outputHeading.textContent = "Output state";
+      const outputGrid = makeMatrix(
+        Array(16).fill("00"),
+        `Round ${roundNumber} ${operationName} output state`
+      );
+      outputBox.append(outputHeading, outputGrid);
+
+      pair.append(inputBox, arrow, outputBox);
+      content.appendChild(pair);
+      stage.append(summary, content);
+
+      //if (roundNumber == 10 && operationName == "AddRoundKey") {
+      const copyButton = document.createElement("button");
+      copyButton.type = "button";
+      copyButton.classList.add("secondary");
+      copyButton.classList.add("copyButton");
+      copyButton.addEventListener("click", async (event) => {
+        const state = readMatrixFixed(outputGrid);
+        const strState = state.join('');
+        try {
+          await navigator.clipboard.writeText(strState);
+          console.log("Copied!", strState);
+        } catch (error) {
+          console.error("Could not copy text:", error);
+        }
+      });
+      copyButton.innerText = "Copy output as hex"
+      content.appendChild(copyButton);
+      //}
+
+      stages.push({
+        roundNumber,
+        operationName,
+        inputGrid,
+        outputGrid
+      });
+
+      return stage;
+    }
+
+    function buildRounds() {
+      operationSequence.forEach((operations, roundNumber) => {
+        const round = document.createElement("details");
+        round.className = "round";
+        round.id = `round-${roundNumber}`;
+        round.open = true;
+
+        const summary = document.createElement("summary");
+        summary.textContent =
+          roundNumber === 0 ? "Initial AddRoundKey" : `Round ${roundNumber}`;
+
+        const content = document.createElement("div");
+        content.className = "round-content";
+
+        operations.forEach(operationName => {
+          content.appendChild(makeStage(roundNumber, operationName));
+        });
+
+        round.append(summary, content);
+        roundsEl.appendChild(round);
+
+        const roundLink = document.createElement("a");
+        roundLink.className = "round-link";
+        roundLink.href = `#round-${roundNumber}`;
+        roundLink.textContent = roundNumber;
+        roundLink.setAttribute("aria-label", `Go to round ${roundNumber}`);
+        roundIndexEl.appendChild(roundLink);
+      });
+    }
+
+    // Placeholder only: round key 0 is the user's main key; later round keys
+    // are random, not derived. Replace this function with the AES-128 key
+    // expansion. It must return 11 arrays of 16 two-character hex byte strings.
+    function expandKey(keyBytes) {
+      keys = schedKeys(keyBytes.map(str => parseInt(str, 16)));
+      keys = keys.map((subkey_mat) => state_encode(state_unpack(subkey_mat)));
+      return keys;
+    }
+
+    // Replace each function's body with that operation's AES transformation.
+    // Each function receives state bytes as an array of 16 hex strings and
+    // returns the resulting state in the same format.
+    function runAddRoundKey(state, roundKey) {
+      const st = state_decode(state);
+      const ky = state_decode(roundKey);
+      const out_st = applyRoundKey(st, ky);
+      return state_encode2(out_st);
+      return randomState(); // Placeholder; implement state XOR roundKey.
+    }
+
+    function runSubBytes(state) {
+      const st = state_decode(state);
+      const subbed = subBytes4B(st);
+      return state_encode2(subbed);
+      return randomState(); // Placeholder; implement byte substitution.
+    }
+
+    function runShiftRows(state) {
+      const st = state_decode(state);
+      const shifted = rowShift(st);
+      return state_encode2(shifted);
+      return randomState(); // Placeholder; implement row shifts.
+    }
+
+    function runMixColumns(state) {
+      const st = state_decode(state);
+      const mixed = mixColumn(st);
+      return state_encode2(mixed);
+      return randomState(); // Placeholder; implement column transformation.
+    }
+
+    function applyOperation(stage, inputState) {
+      switch (stage.operationName) {
+        case "AddRoundKey":
+          return runAddRoundKey(
+            inputState,
+            currentRoundKeys[stage.roundNumber]
+          );
+        case "SubBytes":
+          return runSubBytes(inputState);
+        case "ShiftRows":
+          return runShiftRows(inputState);
+        case "MixColumns":
+          return runMixColumns(inputState);
+        default:
+          throw new Error(`Unknown AES operation: ${stage.operationName}`);
+      }
+    }
+
+    function clearStates() {
+      for (const stage of stages) {
+        writeMatrix(stage.inputGrid, Array(16).fill("00"));
+        writeMatrix(stage.outputGrid, Array(16).fill("00"));
+      }
+    }
+
+    // Calls the operation hook for every stage and renders the returned state.
+    // The rendered output becomes the next operation's input automatically.
+    function cascadeStates(plaintextBytes) {
+      let state = bytesToState(plaintextBytes);
+
+      for (const stage of stages) {
+        writeMatrix(stage.inputGrid, state);
+
+        state = applyOperation(stage, state);
+        writeMatrix(stage.outputGrid, state);
+      }
+    }
+
+    function renderKeySchedule(roundNumber) {
+      if (!currentRoundKeys.length) return;
+
+      activeRound = Math.max(0, Math.min(roundNumber, 10));
+
+      keyScheduleRoundEl.textContent = `Round key ${activeRound}`;
+      roundKeyBytesEl.replaceChildren();
+
+      currentRoundKeys[activeRound].forEach((byte, index) => {
+        const cell = document.createElement("span");
+        cell.className = "key-byte";
+        cell.textContent = byte;
+        cell.setAttribute("aria-label", `Round key byte ${index + 1}: ${byte}`);
+        roundKeyBytesEl.appendChild(cell);
+      });
+
+      keyScheduleStepsEl.replaceChildren();
+
+      const steps = activeRound === 0
+        ? [
+          "Round key 0 is the original 16-byte cipher key.",
+          "The initial AddRoundKey XORs this key with the plaintext state."
+        ]
+        : [
+          "Start with the previous round's four 32-bit words.",
+          "For AES-128, rotate the last word, apply the S-box, then XOR it with the round constant. <span class='scrollBottom' onclick='window.scrollTo({top: document.documentElement.scrollHeight, behavior: \"smooth\",});' >(see bottom)</span>",
+          "XOR that result with the first word from the previous round to form the first new word.",
+          "Form each remaining word by XORing the preceding new word with the corresponding previous-round word."
+        ];
+
+      steps.forEach(text => {
+        const item = document.createElement("li");
+        item.innerHTML = text;
+        keyScheduleStepsEl.appendChild(item);
+      });
+
+      document.querySelectorAll(".round-link").forEach((link, index) => {
+        link.classList.toggle("active", index === activeRound);
+        if (index === activeRound) {
+          link.setAttribute("aria-current", "location");
+        } else {
+          link.removeAttribute("aria-current");
+        }
+      });
+    }
+
+    function updateActiveRoundFromScroll() {
+      scrollUpdatePending = false;
+
+      const threshold = window.innerHeight * 0.25;
+      const rounds = [...document.querySelectorAll("#rounds .round")];
+
+      let current = rounds.find(round => {
+        const rect = round.getBoundingClientRect();
+        return rect.top <= threshold && rect.bottom > threshold;
+      });
+
+      if (!current) {
+        current = rounds.find(round => round.getBoundingClientRect().bottom > threshold);
+      }
+
+      if (current) {
+        const roundNumber = Number(current.id.replace("round-", ""));
+        if (roundNumber !== activeRound) renderKeySchedule(roundNumber);
+      }
+    }
+
+    function scheduleScrollUpdate() {
+      if (scrollUpdatePending) return;
+      scrollUpdatePending = true;
+      requestAnimationFrame(updateActiveRoundFromScroll);
+    }
+
+    // Validate the plaintext according to its selected format, and always
+    // validate the key as hex. Only then refresh the key schedule and cascade.
+    function validateAndRefresh() {
+      if (currentPlaintextFormat() === "hex") {
+        formatHexField(plaintextInput);
+      }
+
+      formatHexField(keyInput);
+
+      const plaintext = parsePlaintext();
+      const key = parseHexField(keyInput, "Key");
+      const errors = [plaintext.error, key.error].filter(Boolean);
+
+      if (errors.length) {
+        currentRoundKeys = [];
+        clearStates();
+        roundKeyBytesEl.replaceChildren();
+        keyScheduleStepsEl.replaceChildren();
+        keyScheduleRoundEl.textContent = "Round key";
+        keyScheduleStatusEl.textContent = "Enter a valid 16-byte hex key.";
+        statusEl.textContent = errors.join(" ");
+        return;
+      }
+
+      currentRoundKeys = expandKey(key.bytes);
+      keyScheduleStatusEl.textContent =
+        "Round 0 shows the entered key. Rounds 1–10 are random placeholders until expandKey() is implemented.";
+
+      cascadeStates(plaintext.bytes);
+      statusEl.textContent =
+        "Plaintext and key are valid. Placeholder states have been refreshed through the final round.";
+
+      renderKeySchedule(activeRound);
+    }
+
+    buildRounds();
+
+    plaintextInput.addEventListener("input", validateAndRefresh);
+    keyInput.addEventListener("input", validateAndRefresh);
+
+    document.querySelectorAll('input[name="inputFormat"]').forEach(radio => {
+      radio.addEventListener("change", validateAndRefresh);
+    });
+
+    document.getElementById("expandAll").addEventListener("click", () => {
+      document.querySelectorAll("#rounds details").forEach(item => {
+        item.open = true;
+      });
+    });
+
+    document.getElementById("collapseAll").addEventListener("click", () => {
+      document.querySelectorAll("#rounds details").forEach(item => {
+        item.open = false;
+      });
+    });
+
+    window.addEventListener("scroll", scheduleScrollUpdate, {passive: true});
+    window.addEventListener("resize", scheduleScrollUpdate);
+
+    validateAndRefresh();
+    updateActiveRoundFromScroll();
+
+    const keySidebar = document.getElementById("keySidebar");
+    const toggleKeyScheduleButton = document.getElementById("toggleKeySchedule");
+    const closeKeyScheduleButton = document.getElementById("closeKeySchedule");
+    const keyPanelBackdrop = document.getElementById("keyPanelBackdrop");
+    const backToTopButton = document.getElementById("backToTop");
+    const mobileLayout = window.matchMedia("(max-width: 720px)");
+    const tabletLayout = window.matchMedia("(max-width: 1000px)");
+
+    function setKeyPanelOpen(open) {
+      if (!mobileLayout.matches && !tabletLayout.matches) return;
+
+      keySidebar.classList.toggle("mobile-open", open);
+      keySidebar.setAttribute("aria-hidden", String(!open));
+      keyPanelBackdrop.hidden = !open;
+      toggleKeyScheduleButton.setAttribute("aria-expanded", String(open));
+
+      if (open) {
+        updateActiveRoundFromScroll();
+        closeKeyScheduleButton.focus();
+      } else {
+        toggleKeyScheduleButton.focus();
+      }
+    }
+
+    toggleKeyScheduleButton.addEventListener("click", () => {
+      const isOpen = toggleKeyScheduleButton.getAttribute("aria-expanded") === "true";
+      setKeyPanelOpen(!isOpen);
+    });
+
+    closeKeyScheduleButton.addEventListener("click", () => {
+      setKeyPanelOpen(false);
+    });
+
+    keyPanelBackdrop.addEventListener("click", () => {
+      setKeyPanelOpen(false);
+    });
+
+    backToTopButton.addEventListener("click", () => {
+      window.scrollTo({top: 0, behavior: "smooth"});
+    });
+
+    document.addEventListener("keydown", event => {
+      if (
+        event.key === "Escape" &&
+        toggleKeyScheduleButton.getAttribute("aria-expanded") === "true"
+      ) {
+        setKeyPanelOpen(false);
+      }
+    });
+
+    function syncKeyPanelForViewport() {
+      if (mobileLayout.matches) {
+        const open = toggleKeyScheduleButton.getAttribute("aria-expanded") === "true";
+        keySidebar.setAttribute("aria-hidden", String(!open));
+      } else {
+        keySidebar.classList.remove("mobile-open");
+        keySidebar.setAttribute("aria-hidden", "false");
+        keyPanelBackdrop.hidden = true;
+        toggleKeyScheduleButton.setAttribute("aria-expanded", "false");
+      }
+    }
+
+    mobileLayout.addEventListener("change", syncKeyPanelForViewport);
+    syncKeyPanelForViewport();
+  </script>
+
+
+</body>
+
+</html>
