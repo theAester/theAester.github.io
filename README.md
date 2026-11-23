@@ -1,6 +1,6 @@
 # theAester.github.io
 
-Developer Page of the Aester.
+Developer Page of aester.
 
 Nothing to see here.
 
